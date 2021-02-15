@@ -7,9 +7,10 @@ FROM basebuilder AS dockerize
 # Download and extract dockerize, used in resources/docker-entrypoint.sh
 ENV DOCKERIZE_VERSION=v0.6.1
 RUN apt-get install --no-install-recommends -y ca-certificates wget
-RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSION/dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz
-RUN tar -xzvf dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz
-RUN rm dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz
+RUN uname -m | sed -E s/.*aarch.*/armel/ > arch.txt
+RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSION/dockerize-linux-$(cat arch.txt)-$DOCKERIZE_VERSION.tar.gz
+RUN tar -xzvf dockerize-linux-$(cat arch.txt)-$DOCKERIZE_VERSION.tar.gz
+RUN rm dockerize-linux-$(cat arch.txt)-$DOCKERIZE_VERSION.tar.gz
 
 
 FROM basebuilder AS builder
@@ -31,11 +32,14 @@ RUN mv /hedgedoc/package.new.json /hedgedoc/package.json
 
 # Install app dependencies and build
 RUN apt-get install --no-install-recommends -y bzip2
+RUN apt-get install --no-install-recommends -y build-essential python
 WORKDIR /hedgedoc
 RUN yarn install --production=false --pure-lockfile
 RUN yarn run build
 RUN rm -rf node_modules
 RUN yarn install --production=true --pure-lockfile
+RUN apt-get purge -y build-essential python
+RUN apt-get autopurge -y
 
 
 FROM base

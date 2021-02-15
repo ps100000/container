@@ -6,9 +6,10 @@ RUN apk update
 FROM basebuilder AS dockerize
 # Download and extract dockerize, used in resources/docker-entrypoint.sh
 ENV DOCKERIZE_VERSION=v0.6.1
-RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSION/dockerize-alpine-linux-amd64-$DOCKERIZE_VERSION.tar.gz
-RUN tar -xzvf dockerize-alpine-linux-amd64-$DOCKERIZE_VERSION.tar.gz
-RUN rm dockerize-alpine-linux-amd64-$DOCKERIZE_VERSION.tar.gz
+RUN echo "alpine-linux-$(uname -m)" | sed -E s/.*aarch.*/linux-armel/ > arch.txt
+RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSION/dockerize-$(cat arch.txt)-$DOCKERIZE_VERSION.tar.gz
+RUN tar -xzvf dockerize-$(cat arch.txt)-$DOCKERIZE_VERSION.tar.gz
+RUN rm dockerize-$(cat arch.txt)-$DOCKERIZE_VERSION.tar.gz
 
 
 FROM basebuilder AS builder
@@ -29,11 +30,13 @@ RUN jq ".repository.url = \"${HEDGEDOC_REPOSITORY}\"" /hedgedoc/package.json > /
 RUN mv /hedgedoc/package.new.json /hedgedoc/package.json
 
 # Install app dependencies and build
+RUN apk add python g++ make
 WORKDIR /hedgedoc
 RUN yarn install --production=false --pure-lockfile
 RUN yarn run build
 RUN rm -rf node_modules
 RUN yarn install --production=true --pure-lockfile
+RUN apk del python g++ make
 
 
 FROM base
